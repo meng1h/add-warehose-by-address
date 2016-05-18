@@ -1,5 +1,159 @@
 extends layout
+block contenthead
+  link(rel="stylesheet" href="plugin/zTree/zTree_v3/css/zTreeStyle/zTreeStyle.css" type="text/css")
+  script(src="plugin/zTree/zTree_v3/js/jquery-1.4.4.min.js")
+  script(type="text/javascript" src="plugin/zTree/zTree_v3/js/jquery.ztree.core.js")
+  link(href="plugin/bootstrap/dist/css/bootstrap.min.css",rel="stylesheet")
+  script(src="plugin/bootstrap/dist/js/bootstrap.min.js")
+  style.
+    .left-content {
+      position :absolute;
+      left :10;
+      width :15%;
+      height :80% ;
+      overflow-y :scroll
+    }
+    .right-content{
+      position :absolute;
+      left :22%;
+      width :80%
+    }
+    .form-addr{
+      position :absolute
+    }
+    .table-show-container{
+      height :400px ;
+      border :solid 1px;
+      overflow-y :scroll
+    }
+  script.
+    {
+      $(document).ready( function() {
+
+        $('#btnQuery').click(function() {
+          reflist();
+        });
+
+        $('#btnSub').click(function() {
+          if($('#province').val() == ''||$('#province').val() == ''||$('#province').val() == ''||$('#warename').val() == '')
+          {
+            alert('请填写表单数据');
+            return false;
+          }
+          $.post('/index/wareadd',
+            $('#form-my-ware').serializeArray(),
+            function(data){
+              console.log(data);
+          });
+
+          reflist();
+        });
+        //初始化ztree
+        setting = {
+          callback: {
+              onClick: zTreeOnClick
+          }
+        };
+        var zTreeNodes = null;
+        $.fn.zTree.init($("#tree"), setting,zTreeNodes);
+
+        //异步加载ztree节点
+        var treeObj = $.fn.zTree.getZTreeObj("tree");
+        $.post('/index/addressjson',function(data) {
+          console.log(data);
+
+          for(var province in data) {
+            var citys = data[province];
+            //console.log(province);
+            var proNode = {"name":province};
+            proNode.isParent = true;
+            proNode.open = false ;
+
+            for(var city in citys) {
+              var areas = citys[city];
+              var cityNode = {"name":city};
+              cityNode.isParent = true ;
+              cityNode.open = false;
+              for(var area in areas) {
+                var areaNode = {"name" :areas[area]};
+                treeObj.addNodes(cityNode,areaNode);
+              }
+              treeObj.addNodes(proNode,cityNode);
+            }
+            treeObj.addNodes(null, proNode);
+            treeObj.expandAll(false);
+          }
+        });
+
+      });
+
+      function zTreeOnClick(event, treeId, treeNode) {
+        try{ 
+          if(!treeNode.isParent){
+            cityNode = treeNode.getParentNode();
+            provinceNode = cityNode.getParentNode();
+
+            $('#province').val(provinceNode.name);
+            $('#city').val(cityNode.name);
+            $('#area').val(treeNode.name);
+
+            //异步请求该区所有的仓库数据
+          }
+          //- alert(treeNode.tId + ", " + treeNode.name);
+
+        } catch(e) {
+          alert(e);
+        }
+      } 
+
+      function reflist() {
+        if($('#province').val() == ''|| $('#city').val() == ''||$('#area').val() == '')
+        {
+          alert('请填写表单数据');
+          return false;
+        }
+        console.log($('#form-my-ware').serializeArray());
+         $.post('/index/warelist',
+          $('#form-my-ware').serializeArray(),
+          function(data) {
+            console.log(data);
+            $('#tbody-show').children("tbody tr").remove();
+            for(var i=0;i<data.length ;i++){
+              $("#tbody-show").append('<tr><td>'+data[i].province+'</td><td>'+data[i].city+'</td><td>'+data[i].area+'</td><td>'+data[i].warename+'</td></tr>');
+            }
+          });
+      } 
+    }
 
 block content
-  h1= title
-  p Welcome to #{title}
+  div.left-content
+    ul.ztree#tree
+  div.right-content
+    div.form-addr
+      form#form-my-ware
+        label 省
+        input#province(name="province")
+        label 市
+        input#city(name="city")
+        label 区
+        input#area(name="area")
+        label 仓库名
+        input#warename(name="warename")
+      br
+      button#btnSub 增加
+      button#btnQuery 查询
+      br
+      br
+      div.table-show-container
+        table.table.table-bordered#table-show
+          thead
+            th 省
+            th 市
+            th 区
+            th 仓
+          tbody#tbody-show
+
+
+
+
+
